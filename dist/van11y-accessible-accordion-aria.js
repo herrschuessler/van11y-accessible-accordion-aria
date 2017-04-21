@@ -41,7 +41,16 @@ var ATTR_HIDDEN = 'aria-hidden';
 var ATTR_CONTROLS = 'aria-controls';
 var ATTR_SELECTED = 'aria-selected';
 
-//const IS_OPENED_CLASS = 'is-opened';
+var IS_OPENED_CLASS = 'is-open';
+
+if (!Element.prototype.matches) {
+  Element.prototype.matches = Element.prototype.matchesSelector || Element.prototype.mozMatchesSelector || Element.prototype.msMatchesSelector || Element.prototype.oMatchesSelector || Element.prototype.webkitMatchesSelector || function (s) {
+    var matches = (this.document || this.ownerDocument).querySelectorAll(s),
+        i = matches.length;
+    while (--i >= 0 && matches.item(i) !== this) {}
+    return i > -1;
+  };
+}
 
 var findById = function findById(id) {
   return document.getElementById(id);
@@ -76,16 +85,7 @@ var setAttributes = function setAttributes(node, attrs) {
     node.setAttribute(attribute, attrs[attribute]);
   });
 };
-/*  const triggerEvent = (el, event_type) => {
-        if (el.fireEvent) {
-          el.fireEvent('on' + event_type);
-        }
-        else {
-              let evObj = document.createEvent('Events');
-              evObj.initEvent(event_type, true, false);
-              el.dispatchEvent(evObj);
-             }
-           }*/
+
 var unSelectHeaders = function unSelectHeaders(elts) {
   elts.forEach(function (header_node) {
     var _setAttributes;
@@ -139,6 +139,19 @@ var searchParent = function searchParent(el, parentClass) {
   }
 };
 
+var findAncestor = function findAncestor(el, sel) {
+  if (typeof el.closest === 'function') {
+    return el.closest(sel) || null;
+  }
+  while (el) {
+    if (el.matches(sel)) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+};
+
 // Find all accordions
 var $listAccordions = function $listAccordions() {
   return [].slice.call(document.querySelectorAll('.' + ACCORDION_JS));
@@ -185,7 +198,7 @@ var init = function init() {
       setAttributes(accordionButton, (_setAttributes2 = {}, _defineProperty(_setAttributes2, ATTR_ROLE, ACCORDION_ROLE_TAB), _defineProperty(_setAttributes2, 'id', ACCORDION_PREFIX_IDS + iLisible + ACCORDION_BUTTON_ID + indexHeaderLisible), _defineProperty(_setAttributes2, ATTR_CONTROLS, ACCORDION_PREFIX_IDS + iLisible + ACCORDION_PANEL_ID + indexHeaderLisible), _defineProperty(_setAttributes2, ATTR_SELECTED, 'false'), _defineProperty(_setAttributes2, 'tabindex', '-1'), _defineProperty(_setAttributes2, 'type', 'button'), _setAttributes2));
 
       // place button
-      accordionButton = accordion_node.insertBefore(accordionButton, header_node);
+      accordionButton = header_node.parentElement.insertBefore(accordionButton, header_node);
 
       // move title into panel
       accordionPanel.insertBefore(header_node, accordionPanel.firstChild);
@@ -234,7 +247,8 @@ var init = function init() {
       if (hasClass(e.target, ACCORDION_JS_HEADER) === true && eventName === 'click') {
         (function () {
           var buttonTag = e.target;
-          var accordionContainer = buttonTag.parentNode;
+          var accordionItem = buttonTag.parentNode;
+          var accordionContainer = findAncestor(buttonTag, '.' + ACCORDION_JS);
           var $accordionAllHeaders = [].slice.call(accordionContainer.querySelectorAll('.' + ACCORDION_JS_HEADER));
           var accordionMultiSelectable = accordionContainer.getAttribute(ATTR_MULTISELECTABLE);
           var destination = findById(buttonTag.getAttribute(ATTR_CONTROLS));
@@ -244,20 +258,30 @@ var init = function init() {
           if (stateButton === 'false') {
             buttonTag.setAttribute(ATTR_EXPANDED, true);
             destination.removeAttribute(ATTR_HIDDEN);
+
+            // add class to container
+            addClass(accordionItem, IS_OPENED_CLASS);
+            addClass(accordionContainer, IS_OPENED_CLASS);
           } else {
             buttonTag.setAttribute(ATTR_EXPANDED, false);
             destination.setAttribute(ATTR_HIDDEN, true);
+
+            // remove class to container
+            removeClass(accordionItem, IS_OPENED_CLASS);
+            removeClass(accordionContainer, IS_OPENED_CLASS);
           }
 
           if (accordionMultiSelectable === 'false') {
             $accordionAllHeaders.forEach(function (header_node) {
 
+              var accordionItem = header_node.parentNode;
               var destinationPanel = findById(header_node.getAttribute(ATTR_CONTROLS));
 
               if (header_node !== buttonTag) {
                 header_node.setAttribute(ATTR_SELECTED, false);
                 header_node.setAttribute(ATTR_EXPANDED, false);
                 destinationPanel.setAttribute(ATTR_HIDDEN, true);
+                removeClass(accordionItem, IS_OPENED_CLASS);
               } else {
                 header_node.setAttribute(ATTR_SELECTED, true);
               }
